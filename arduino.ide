@@ -1,0 +1,223 @@
+#include <Servo.h>
+
+#define speedPinR 3
+#define RightDirectPin1 12
+#define RightDirectPin2 11
+#define speedPinL 6
+#define LeftDirectPin1 7
+#define LeftDirectPin2 8
+#define LPT 2
+
+#define Echo_PIN 4
+#define Trig_PIN 5
+
+#define Servo_PIN 9
+
+#define LeftObstacleSensor 2
+#define RightObstacleSensor 10
+
+Servo head;
+int leftscanval, centerscanval, rightscanval;
+const int distancelimit = 6;
+
+
+const int sidedistancelimit = 10;
+
+void go_Advance() {
+  digitalWrite(RightDirectPin1, HIGH);
+  digitalWrite(RightDirectPin2, LOW);
+  digitalWrite(LeftDirectPin1, HIGH);
+  digitalWrite(LeftDirectPin2, LOW);
+}
+
+void go_Left() {
+  digitalWrite(RightDirectPin1, HIGH);
+  digitalWrite(RightDirectPin2, LOW);
+  digitalWrite(LeftDirectPin1, LOW);
+  digitalWrite(LeftDirectPin2, HIGH);
+}
+
+void go_Right() {
+  digitalWrite(RightDirectPin1, LOW);
+  digitalWrite(RightDirectPin2, HIGH);
+  digitalWrite(LeftDirectPin1, HIGH);
+  digitalWrite(LeftDirectPin2, LOW);
+}
+
+void go_Back() {
+  digitalWrite(RightDirectPin1, LOW);
+  digitalWrite(RightDirectPin2, HIGH);
+  digitalWrite(LeftDirectPin1, LOW);
+  digitalWrite(LeftDirectPin2, HIGH);
+}
+
+void stop_Stop() {
+  digitalWrite(RightDirectPin1, LOW);
+  digitalWrite(RightDirectPin2, LOW);
+  digitalWrite(LeftDirectPin1, LOW);
+  digitalWrite(LeftDirectPin2, LOW);
+}
+
+void set_MotorSpeed(int Speed_L, int Speed_R) {
+  analogWrite(speedPinL, Speed_L);
+  analogWrite(speedPinR, Speed_R);
+}
+
+int watch() {
+  long echo_distance;
+  digitalWrite(Trig_PIN, LOW);
+  delayMicroseconds(5);
+  digitalWrite(Trig_PIN, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(Trig_PIN, LOW);
+  echo_distance=pulseIn(Echo_PIN,HIGH);
+  echo_distance=echo_distance*0.01657;
+  // Serial.println((int)echo_distance);
+  return round(echo_distance);
+}
+
+String watchsurrounding() {
+  int obstacle_status = B1000;
+  centerscanval = watch();
+  if(centerscanval<distancelimit){
+    stop_Stop();
+    Serial.print("front/n");
+    obstacle_status = obstacle_status | B010;
+  }
+  // head.write(180);
+  // delay(500);
+  // leftscanval = watch();
+  // if(leftscanval<sidedistancelimit){
+  //   stop_Stop();
+  //   obstacle_status = obstacle_status | B100;
+  // }
+  // head.write(90);
+  // delay(500);
+  // centerscanval = watch();
+  // if(centerscanval<distancelimit){
+  //   stop_Stop();
+  //   obstacle_status = obstacle_status | B010;
+  // }
+   
+  int IRvalueLeft = digitalRead(LeftObstacleSensor);
+  if (IRvalueLeft == LOW){
+    stop_Stop();
+    Serial.print("left/n");
+    obstacle_status = obstacle_status | B100;
+    }
+   
+  int IRvalueRight = digitalRead(RightObstacleSensor);
+  if (IRvalueRight == LOW){
+    stop_Stop();
+    Serial.print("right/n");
+    obstacle_status = obstacle_status | B001;
+    }
+  // }
+  // head.write(0);
+  // delay(500);
+  // rightscanval = watch();
+  // if(rightscanval<sidedistancelimit){
+  //   stop_Stop();
+  //   obstacle_status = obstacle_status | B001;
+  // }
+  // head.write(90);
+  //delay(500);
+  String obstacle_str = String(obstacle_status, BIN);
+  obstacle_str = obstacle_str.substring(1, 4);
+
+  Serial.println((String)obstacle_str);
+  return obstacle_str;
+ 
+  Serial.print("detection/n");
+}
+
+void setup() {
+  pinMode(RightDirectPin1, OUTPUT);
+  pinMode(RightDirectPin2, OUTPUT);
+  pinMode(speedPinL, OUTPUT);
+  pinMode(LeftDirectPin1, OUTPUT);
+  pinMode(LeftDirectPin2, OUTPUT);
+  stop_Stop();
+ 
+  pinMode(RightObstacleSensor, INPUT);
+  pinMode(LeftObstacleSensor, INPUT);
+ 
+  pinMode(Trig_PIN, OUTPUT);
+  pinMode(Echo_PIN, INPUT);
+ 
+  digitalWrite(Trig_PIN, LOW);
+ 
+  head.attach(Servo_PIN);
+  head.write(90);
+ 
+  delay (2000);
+ 
+  Serial.begin(9600);
+}
+
+void loop() {
+   int pause = 60;
+   int distance = watch();
+   int wasTurn = 0;
+   int alternate = 0;
+   int newTurn = 0;
+   String obstacles = watchsurrounding();
+   if (/*(obstacles == "100") || */(obstacles =="101") || ((obstacles == "001") && (wasTurn == 1)) || (obstacles == "000")) {
+     go_Advance();
+     set_MotorSpeed(255, 255);
+     delay(50);
+     set_MotorSpeed(0, 0);
+     wasTurn = 0;
+      stop_Stop();
+     set_MotorSpeed(0, 0);
+     delay(pause);
+   }
+   if ((obstacles == "010") || (obstacles == "011") || ((obstacles == "001") && (wasTurn == 0))) {
+     go_Left();
+     set_MotorSpeed(120, 120);
+     delay(450);
+     set_MotorSpeed(0, 0);
+     go_Advance();
+     
+set_MotorSpeed(110, 110);
+     delay(350);
+     set_MotorSpeed(0, 0);
+     wasTurn = 1;
+      stop_Stop();
+     set_MotorSpeed(0, 0);
+     delay(pause);
+   }
+   if ((obstacles == "100") || (obstacles == "110") /*|| (obstacles == "111")*/) {
+     go_Right();
+     set_MotorSpeed(130, 130);
+     delay(230);
+     set_MotorSpeed(0, 0);
+     go_Advance();
+     set_MotorSpeed(120, 120);
+     delay(300);
+     set_MotorSpeed(0, 0);
+     wasTurn = 1;
+      stop_Stop();
+     set_MotorSpeed(0, 0);
+     delay(pause);
+   }
+  //  if (obstacles == "000"){
+  // //    if (alternate == 0){
+  // //     go_Left();
+  // //     // alternate = 1;
+  // //    } else if (alternate == 1) {
+  // //     go_Right();
+  // //     alternate = 0;
+  // //    }
+  // //    set_MotorSpeed(115, 115);
+  // //    delay(30);
+  // //    set_MotorSpeed(0, 0);
+  //  }
+    if (obstacles == "111") {
+      go_Right();
+     set_MotorSpeed(150, 150);
+     delay(800);
+      stop_Stop();
+      set_MotorSpeed(0, 0);
+    }
+}
